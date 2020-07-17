@@ -199,3 +199,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #+end_src
 
 Added this block of code to check for keypresses.
+**
+
+* DFU and linux udev rules
+https://docs.qmk.fm/#/faq_build?id=linux-udev-rules
+Good link related to if it says "No device present", but it still didn't fix my problem

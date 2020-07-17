@@ -1,0 +1,32 @@
+#+TITLE:Todo list
+
+
+List of todos
+* Firmware
+** OLED
+** Encoder
+** Menu
+Pressing into the OLED screen goes directly into menu mode, which gives the following settings
+
+LED
+ - Backlight
+ -
+ -
+Macro
+
+
+
+* Website
+
+** TODO Basic weblayout
+- [ ] Menu bar
+      should contain
+  - Home
+  - Products
+    - Keyboards
+    -
+  - About us
+  - Docs
+  - Community
+  - Updates
+- [ ] Stripe processing
