@@ -97,6 +97,13 @@ void matrix_scan_user(void) {
 
     encoder_button_status = readPin(ENCODER_BUTTON);
 
+    // BUTTON PRESS LOOKS LIKE THIS:
+    //                     falling          rising
+    // HIGH -----------------|                |---------------
+    //                       |                |
+    // LOW                   |--------------- |
+    //         not pressed        pressed        not pressed
+    // TODO: Make second block activate as soon as encoder is held down for hold duration without waiting for rising edge of button 
     // Change mode on falling edge of encoder press depending on duration of press
     if (!encoder_button_status && encoder_button_status != encoder_button_previous) { // Activated once on falling edge to start timer - activated when encoder is initially pressed
         encoder_start_time = timer_read();
