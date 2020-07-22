@@ -63,6 +63,30 @@ void keyboard_post_init_user(void) {
     rgblight_mode(RGBLIGHT_MODE_RAINBOW_SWIRL + 4);
 }
 
+void encoder_press_command(void) {
+	switch (encoder_mode) {
+
+        case 0: // Volume control
+			tap_code(KC_MEDIA_PLAY_PAUSE);
+            break;
+
+        case 1: // Backlight brightness control
+			tap_code(KC_MEDIA_PLAY_PAUSE);
+            break;
+
+        case 2: // RGB brightness control
+			tap_code(KC_MEDIA_PLAY_PAUSE);
+            break;
+
+        case 3: // RGB speed control
+			tap_code(KC_MEDIA_PLAY_PAUSE);
+            break;
+
+        default: // Reset counter
+            encoder_mode = 0;
+            break;
+    }
+}
 
 void matrix_init_user(void) {
 
@@ -85,7 +109,7 @@ void matrix_scan_user(void) {
     else if (encoder_button_status && !encoder_button_previous) { // Activated once on rising edge if less than one second hold
         encoder_button_previous = true;
         encoder_hold = false;
-        tap_code(KC_PAUSE);
+        encoder_press_command();
     }
 }
 
