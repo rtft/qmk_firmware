@@ -42,7 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ENCODERS_PAD_A { D6 }
 #define ENCODERS_PAD_B { D4 }
 #define ENCODER_BUTTON F7
-#define ENCODER_RESOLUTION 2
+#define ENCODER_RESOLUTION 4
 #define DEBOUNCE 10
 
 /* OLED Display */

@@ -20,14 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* HARDCODED PARAMETERS */
 #define BOOTTIME 3000
+#define ENCODER_HOLD_DURATION 1000
 
 /* VARIABLE PARAMETERS */
 bool numlock_status = false;
 bool encoder_button_status = true;
 bool encoder_button_previous = true;
-uint8_t encoder_mode = 0;
+int8_t encoder_mode = 0;
 bool boot_complete = false;
 static uint16_t start_time;
+uint16_t encoder_start_time;
+bool encoder_hold = false;
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -70,12 +73,29 @@ void matrix_scan_user(void) {
 
     encoder_button_status = readPin(ENCODER_BUTTON);
 
-    if (!encoder_button_status && encoder_button_status != encoder_button_previous){
-        encoder_mode++;
+    // Change mode on falling edge of encoder press depending on duration of press
+    if (!encoder_button_status && encoder_button_status != encoder_button_previous) { // Activated once on falling edge to start timer
+        encoder_start_time = timer_read();
         encoder_button_previous = false;
     }
-    else if (encoder_button_status && !encoder_button_previous) {
+    else if (encoder_button_status && !encoder_button_previous && timer_read() - encoder_start_time > ENCODER_HOLD_DURATION) { // Activated once on rising edge if held for longer than hold duration
+    	encoder_button_previous = true;
+    	encoder_hold = true;
+    }
+    else if (encoder_button_status && !encoder_button_previous) { // Activated once on rising edge if less than one second hold
         encoder_button_previous = true;
+        encoder_hold = false;
+        tap_code(KC_PAUSE);
+    }
+}
+
+static void erase_oled(void) {
+    // Erase buffer
+    oled_clear();
+
+    // Render the empty buffer sequentially to the 16 OLED chunks
+    for (uint8_t i = 0; i < 16; i++){
+        oled_render();
     }
 }
 
@@ -83,52 +103,71 @@ void matrix_scan_user(void) {
 //https://beta.docs.qmk.fm/using-qmk/hardware-features/feature_encoders
 void encoder_update_user(uint8_t index, bool clockwise) {
 
-    switch (encoder_mode) {
+	// If encoder was held, then change modes with rotation, else just change whatever mode encoder is on
+	if (encoder_hold) { 
+	    if (clockwise) {
+	    	erase_oled();
+            encoder_mode++;
+        } else {
+        	erase_oled();
+            encoder_mode--;
+        }
+        if (encoder_mode > 3) {
+        	encoder_mode = 0;
+        }
+        else if (encoder_mode < 0) {
+        	encoder_mode = 3;
+        }
 
-        case 0: // Volume control
+	}
+	else {
+	    switch (encoder_mode) {
 
-            if (clockwise) {
-                tap_code(KC_VOLU);
-            } else {
-                tap_code(KC_VOLD);
-            }
+	        case 0: // Volume control
 
-            break;
+	            if (clockwise) {
+	                tap_code(KC_VOLU);
+	            } else {
+	                tap_code(KC_VOLD);
+	            }
 
-        case 1: // Backlight brightness control
+	            break;
 
-            if (clockwise) {
-                backlight_increase();
-            } else {
-                backlight_decrease();
-            }
+	        case 1: // Backlight brightness control
 
-            break;
+	            if (clockwise) {
+	                backlight_increase();
+	            } else {
+	                backlight_decrease();
+	            }
 
-        case 2: // RGB brightness control
+	            break;
 
-            if (clockwise) {
-                rgblight_increase_val();
-            } else {
-                rgblight_decrease_val();
-            }
+	        case 2: // RGB brightness control
 
-            break;
+	            if (clockwise) {
+	                rgblight_increase_val();
+	            } else {
+	                rgblight_decrease_val();
+	            }
 
-        case 3: // RGG speed control
+	            break;
 
-            if (clockwise) {
-                rgblight_step();
-            } else {
-                rgblight_step_reverse();
-            }
+	        case 3: // RGB speed control
 
-            break;
+	            if (clockwise) {
+	                rgblight_step();
+	            } else {
+	                rgblight_step_reverse();
+	            }
 
-        default: // Reset counter
-            encoder_mode = 0;
-            break;
-    }
+	            break;
+
+	        default: // Reset counter
+	            encoder_mode = 0;
+	            break;
+	    }
+	}
 }
 
 //OLED stuff
@@ -176,40 +215,51 @@ static void render_logo(void) {
     oled_write_raw_P(qmk_logo, sizeof(qmk_logo));
 }
 
-static void erase_oled(void) {
-    // Erase buffer
-    oled_clear();
-
-    // Render the empty buffer sequentially to the 16 OLED chunks
-    for (uint8_t i = 0; i < 16; i++){
-        oled_render();
-    }
-}
-
 void render_menu(void) {
-    static const char PROGMEM numlock_off[] = {
-        0x00, 0x00, 0xfc, 0x08, 0x10, 0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x00, 0xe0, 0x00, 
-        0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0xe0, 0x40, 0x20, 0x20, 0x20, 0xc0, 0x40, 0x20, 0x20, 
-        0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x04, 0x08, 0x1f, 
-        0x00, 0x00, 0x07, 0x08, 0x10, 0x10, 0x10, 0x08, 0x1f, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 
-        0x1f, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00
-    };
+    // static const char PROGMEM numlock_off[] = {
+    //     0x00, 0x00, 0xfc, 0x08, 0x10, 0x20, 0x40, 0x80, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x00, 0xe0, 0x00, 
+    //     0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0xe0, 0x40, 0x20, 0x20, 0x20, 0xc0, 0x40, 0x20, 0x20, 
+    //     0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x04, 0x08, 0x1f, 
+    //     0x00, 0x00, 0x07, 0x08, 0x10, 0x10, 0x10, 0x08, 0x1f, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 
+    //     0x1f, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00
+    // };
 
-    static const char PROGMEM numlock_on[] = {
-        0xfe, 0xff, 0x03, 0xf7, 0xef, 0xdf, 0xbf, 0x7f, 0xff, 0xff, 0xff, 0x03, 0xff, 0xff, 0x1f, 0xff, 
-        0xff, 0xff, 0xff, 0xff, 0x1f, 0xff, 0xff, 0x1f, 0xbf, 0xdf, 0xdf, 0xdf, 0x3f, 0xbf, 0xdf, 0xdf, 
-        0xdf, 0x3f, 0xff, 0xfe, 0x3f, 0x7f, 0x60, 0x7f, 0x7f, 0x7f, 0x7f, 0x7e, 0x7d, 0x7b, 0x77, 0x60, 
-        0x7f, 0x7f, 0x78, 0x77, 0x6f, 0x6f, 0x6f, 0x77, 0x60, 0x7f, 0x7f, 0x60, 0x7f, 0x7f, 0x7f, 0x7f, 
-        0x60, 0x7f, 0x7f, 0x7f, 0x7f, 0x60, 0x7f, 0x3f
-    };
+    // static const char PROGMEM numlock_on[] = {
+    //     0xfe, 0xff, 0x03, 0xf7, 0xef, 0xdf, 0xbf, 0x7f, 0xff, 0xff, 0xff, 0x03, 0xff, 0xff, 0x1f, 0xff, 
+    //     0xff, 0xff, 0xff, 0xff, 0x1f, 0xff, 0xff, 0x1f, 0xbf, 0xdf, 0xdf, 0xdf, 0x3f, 0xbf, 0xdf, 0xdf, 
+    //     0xdf, 0x3f, 0xff, 0xfe, 0x3f, 0x7f, 0x60, 0x7f, 0x7f, 0x7f, 0x7f, 0x7e, 0x7d, 0x7b, 0x77, 0x60, 
+    //     0x7f, 0x7f, 0x78, 0x77, 0x6f, 0x6f, 0x6f, 0x77, 0x60, 0x7f, 0x7f, 0x60, 0x7f, 0x7f, 0x7f, 0x7f, 
+    //     0x60, 0x7f, 0x7f, 0x7f, 0x7f, 0x60, 0x7f, 0x3f
+    // };
 
-    if (numlock_status) {
-        oled_write_raw_P(numlock_on, sizeof(numlock_on));
-    }
-    else {
-        oled_write_raw_P(numlock_off, sizeof(numlock_off));
-    }
-    
+    // if (numlock_status) {
+    //     oled_write_raw_P(numlock_on, sizeof(numlock_on));
+    // }
+    // else {
+    //     oled_write_raw_P(numlock_off, sizeof(numlock_off));
+    // }
+    switch (encoder_mode) {
+
+        case 0: // Volume control
+        	oled_write("VOLUME CONTROL", !encoder_hold);
+            break;
+
+        case 1: // Backlight brightness control
+        	oled_write("BACKLIGHT LEVEL", !encoder_hold);
+            break;
+
+        case 2: // RGB brightness control
+        	oled_write("RGB LEVEL", !encoder_hold);
+            break;
+
+        case 3: // RGB speed control
+        	oled_write("RGB SPEED", !encoder_hold);
+            break;
+
+        default: // Reset counter
+            encoder_mode = 0;
+            break;
+    }    
 }
 
 
