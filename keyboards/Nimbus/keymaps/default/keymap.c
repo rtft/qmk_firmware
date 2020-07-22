@@ -71,15 +71,15 @@ void encoder_press_command(void) {
             break;
 
         case 1: // Backlight brightness control
-			tap_code(KC_MEDIA_PLAY_PAUSE);
+			backlight_toggle();
             break;
 
         case 2: // RGB brightness control
-			tap_code(KC_MEDIA_PLAY_PAUSE);
+			rgblight_toggle();
             break;
 
         case 3: // RGB speed control
-			tap_code(KC_MEDIA_PLAY_PAUSE);
+			rgblight_toggle();
             break;
 
         default: // Reset counter
@@ -98,17 +98,20 @@ void matrix_scan_user(void) {
     encoder_button_status = readPin(ENCODER_BUTTON);
 
     // Change mode on falling edge of encoder press depending on duration of press
-    if (!encoder_button_status && encoder_button_status != encoder_button_previous) { // Activated once on falling edge to start timer
+    if (!encoder_button_status && encoder_button_status != encoder_button_previous) { // Activated once on falling edge to start timer - activated when encoder is initially pressed
         encoder_start_time = timer_read();
         encoder_button_previous = false;
     }
-    else if (encoder_button_status && !encoder_button_previous && timer_read() - encoder_start_time > ENCODER_HOLD_DURATION) { // Activated once on rising edge if held for longer than hold duration
+    else if (encoder_button_status && !encoder_button_previous && timer_read() - encoder_start_time > ENCODER_HOLD_DURATION) { // Activated once on rising edge if held for longer than hold duration - activates when encoder is held to change setting
     	encoder_button_previous = true;
     	encoder_hold = true;
     }
-    else if (encoder_button_status && !encoder_button_previous) { // Activated once on rising edge if less than one second hold
+    else if (encoder_button_status && !encoder_button_previous && encoder_hold) { // Activated once on rising edge if less than one second hold AND if encoder was held - activates when saving encoder mode
         encoder_button_previous = true;
         encoder_hold = false;
+    }
+    else if (encoder_button_status && !encoder_button_previous) { // Activated once on rising edge if less than one second hold - activates on a normal short press of encoder
+    	encoder_button_previous = true;
         encoder_press_command();
     }
 }
