@@ -25,12 +25,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* VARIABLE PARAMETERS */
 bool numlock_status = false;
 bool encoder_button_status = true;
-bool encoder_button_previous = true;
+bool encoder_button_status_previous = true;
+bool encoder_hold = false;
+bool encoder_hold_previous = false;
 int8_t encoder_mode = 0;
 bool boot_complete = false;
 static uint16_t start_time;
 uint16_t encoder_start_time;
-bool encoder_hold = false;
+
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -97,29 +99,46 @@ void matrix_scan_user(void) {
 
     encoder_button_status = readPin(ENCODER_BUTTON);
 
-    // BUTTON PRESS LOOKS LIKE THIS:
-    //                     falling          rising
-    // HIGH -----------------|                |---------------
-    //                       |                |
-    // LOW                   |--------------- |
-    //         not pressed        pressed        not pressed
-    // TODO: Make second block activate as soon as encoder is held down for hold duration without waiting for rising edge of button 
-    // Change mode on falling edge of encoder press depending on duration of press
-    if (!encoder_button_status && encoder_button_status != encoder_button_previous) { // Activated once on falling edge to start timer - activated when encoder is initially pressed
-        encoder_start_time = timer_read();
-        encoder_button_previous = false;
+    /* BUTTON PRESS LOOKS LIKE THIS:
+                        falling          rising
+    HIGH -----------------|                |---------------
+                          |                |
+    LOW                   |--------------- |
+            not pressed        pressed        not pressed
+    Change mode on falling edge of encoder press depending on duration of press */
+
+    // Encoder is pressed
+    if (!encoder_button_status) {
+    	// Active on first scan after press
+    	if (encoder_button_status_previous) {
+	        encoder_start_time = timer_read();
+	        encoder_button_status_previous = false;
+    	}
+    	// Active on all other press scans
+    	else { 
+    		// Check if hold duration is long enough
+    		if (timer_read() - encoder_start_time > ENCODER_HOLD_DURATION) {
+    			encoder_hold = true;
+    		}
+    		else {
+    			encoder_hold = false;
+    		}
+
+    	}
     }
-    else if (encoder_button_status && !encoder_button_previous && timer_read() - encoder_start_time > ENCODER_HOLD_DURATION) { // Activated once on rising edge if held for longer than hold duration - activates when encoder is held to change setting
-    	encoder_button_previous = true;
-    	encoder_hold = true;
-    }
-    else if (encoder_button_status && !encoder_button_previous && encoder_hold) { // Activated once on rising edge if less than one second hold AND if encoder was held - activates when saving encoder mode
-        encoder_button_previous = true;
-        encoder_hold = false;
-    }
-    else if (encoder_button_status && !encoder_button_previous) { // Activated once on rising edge if less than one second hold - activates on a normal short press of encoder
-    	encoder_button_previous = true;
-        encoder_press_command();
+    // Encoder not pressed
+    else {
+    	// Active on first scan after depress
+    	if (!encoder_button_status_previous) {
+    	    // Check if holds active or else send normal press command
+    		if (!encoder_hold && !encoder_hold_previous) {
+    			encoder_press_command();
+    		}
+
+    		// Set previous bools
+    		encoder_hold_previous = encoder_hold;
+    		encoder_button_status_previous = true;
+    	}
     }
 }
 
