@@ -28,7 +28,10 @@ bool encoder_button_status = true;
 bool encoder_button_status_previous = true;
 bool encoder_hold = false;
 bool encoder_hold_previous = false;
+
 int8_t encoder_mode = 0;
+bool encoder_hue_sat = true;
+
 bool boot_complete = false;
 static uint16_t start_time;
 uint16_t encoder_start_time;
@@ -56,10 +59,10 @@ void keyboard_pre_init_user(void) {
 
 void keyboard_post_init_user(void) {
     // Customise these values to desired behaviour
-    debug_enable=true;
-    debug_matrix=true;
-    debug_keyboard=true;
-    debug_mouse=true;
+    debug_enable = true;
+    debug_matrix = true;
+    debug_keyboard = true;
+    debug_mouse = true;
 
     rgblight_enable();
     rgblight_mode(RGBLIGHT_MODE_RAINBOW_SWIRL + 4);
@@ -84,9 +87,12 @@ void encoder_press_command(void) {
 			rgblight_toggle();
             break;
 
-        default: // Reset counter
-            encoder_mode = 0;
-            break;
+        case 4:
+        	encoder_hue_sat = !encoder_hue_sat;
+        	break;
+
+        default: // Do nothing
+        	break;
     }
 }
 
@@ -165,11 +171,11 @@ void encoder_update_user(uint8_t index, bool clockwise) {
         	erase_oled();
             encoder_mode--;
         }
-        if (encoder_mode > 3) {
+        if (encoder_mode > 4) {
         	encoder_mode = 0;
         }
         else if (encoder_mode < 0) {
-        	encoder_mode = 3;
+        	encoder_mode = 4;
         }
 
 	}
@@ -206,7 +212,7 @@ void encoder_update_user(uint8_t index, bool clockwise) {
 
 	            break;
 
-	        case 3: // RGB speed control
+	        case 3: // RGB mode control
 
 	            if (clockwise) {
 	                rgblight_step();
@@ -216,9 +222,30 @@ void encoder_update_user(uint8_t index, bool clockwise) {
 
 	            break;
 
-	        default: // Reset counter
-	            encoder_mode = 0;
-	            break;
+	        case 4: // Change solidlight
+
+	        	// Hue changing mode
+	        	if (encoder_hue_sat) { 
+		        	if (clockwise) {
+		                rgblight_increase_hue();
+		            } else {
+		                rgblight_decrease_hue();
+		            }
+	        	}
+	        	// Saturation changing mode
+	        	else {
+	        		if (clockwise) {
+		                rgblight_increase_sat();
+		            } else {
+		                rgblight_decrease_sat();
+		            }
+	        	}
+
+
+
+	        default: // Do nothing
+	        	break;
+
 	    }
 	}
 }
@@ -294,24 +321,42 @@ void render_menu(void) {
     switch (encoder_mode) {
 
         case 0: // Volume control
-        	oled_write("VOLUME CONTROL", !encoder_hold);
+        	oled_set_cursor(0, 0);
+        	oled_write("Encoder: Volume", !encoder_hold);
+        	oled_set_cursor(0, 1);
+        	oled_write("Button : Play/Pause", !encoder_hold);
             break;
 
         case 1: // Backlight brightness control
-        	oled_write("BACKLIGHT LEVEL", !encoder_hold);
+        	oled_set_cursor(0, 0);
+        	oled_write("Encoder: LED Level", !encoder_hold);
+        	oled_set_cursor(0, 1);
+        	oled_write("Button : On/Off", !encoder_hold);
             break;
 
         case 2: // RGB brightness control
-        	oled_write("RGB LEVEL", !encoder_hold);
+        	oled_set_cursor(0, 0);
+        	oled_write("Encoder: RGB Level", !encoder_hold);
+        	oled_set_cursor(0, 1);
+        	oled_write("Button : On/Off", !encoder_hold);
             break;
 
         case 3: // RGB speed control
-        	oled_write("RGB SPEED", !encoder_hold);
+        	oled_set_cursor(0, 0);
+        	oled_write("Encoder: RGB Mode", !encoder_hold);
+        	oled_set_cursor(0, 1);
+        	oled_write("Button : On/Off", !encoder_hold);
             break;
 
-        default: // Reset counter
-            encoder_mode = 0;
+        case 4: // RGB speed control
+        	oled_set_cursor(0, 0);
+        	oled_write("Encoder: RGB Color", !encoder_hold);
+        	oled_set_cursor(0, 1);
+        	oled_write("Button : Hue/Sat", !encoder_hold);
             break;
+
+        default: // Do nothing
+        	break;
     }    
 }
 
